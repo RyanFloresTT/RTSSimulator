@@ -66,7 +66,7 @@ int main()
 
 	while (window.isOpen())
 	{
-		sf::Event event;
+		sf::Event event{};
 		while (window.pollEvent(event))
 		{
 			
@@ -104,7 +104,9 @@ int main()
 
 
 		ImGui::Begin("Hello, world!");
-		ImGui::Button("Look at this pretty button!");
+		if (ImGui::Button("Look at this pretty button!")){
+            std::cout << "Button Pressed\n";
+        }
 		ImGui::Text("Hello!");
 		ImGui::End();
 

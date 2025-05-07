@@ -9,10 +9,12 @@ struct PlayerConfig {
     int   SR, CR, FR, FG, FB, OR, OG, OB, OT, V;
     float S;
 };
+
 struct EnemyConfig {
-    int   SR, CR, OR, OG, OB, OT, VMIN, VMAX, L, SI;
+    int   SR,   CR, OR, OG, OB, OT, VMIN, VMAX, L, SI;
     float SMIN, SMAX;
 };
+
 struct BulletConfig {
     int   SR, CR, FR, FG, FB, OR, OG, OB, OT, V, L;
     float S;
@@ -30,10 +32,11 @@ class Game {
     int              m_score              = 0;
     int              m_currentFrame       = 0;
     int              m_lastEnemySpawnTime = 0;
+    float            m_playerSpeed        = 2;
     bool             m_isPaused           = false;
     bool             m_isRunning          = true;
 
-    void init(const std::string &config);
+    void init(const std::string& config);
 
     void setPaused(bool paused);
 
@@ -45,7 +48,7 @@ class Game {
 
     void sRender();
 
-    static void sGUI();
+    void sGUI();
 
     void sEnemySpawner();
 
@@ -57,14 +60,14 @@ class Game {
 
     void spawnSmallEnemies(std::shared_ptr<Entity> entity);
 
-    void spawnBullet(std::shared_ptr<Entity> entity, const sf::Vector2f &mousePos);
+    void spawnBullet(std::shared_ptr<Entity> entity, const sf::Vector2f& mousePos);
 
     void spawnSpecialWeapon(std::shared_ptr<Entity> entity);
 
     std::shared_ptr<Entity> player();
 
 public:
-    explicit Game(const std::string &config);
+    explicit Game(const std::string& config);
 
     void run();
 };

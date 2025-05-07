@@ -1,16 +1,17 @@
 #include "Game.h"
 
 #include <iostream>
+#include <random>
 
 #include "imgui-SFML.h"
 #include "imgui.h"
 #include "SFML/Window/Event.hpp"
 
-Game::Game(const std::string& config) {
+Game::Game(const std::string &config) {
     init(config);
 }
 
-void Game::init(const std::string& config) {
+void Game::init(const std::string &config) {
     m_window.create(sf::VideoMode(1280, 720), "CoolGame");
     m_window.setFramerateLimit(60);
 
@@ -24,7 +25,7 @@ void Game::init(const std::string& config) {
 }
 
 std::shared_ptr<Entity> Game::player() {
-    auto& players = m_entities.getEntities("player");
+    auto &players = m_entities.getEntities("player");
     assert(players.size() == 1);
     return players.front();
 }
@@ -40,28 +41,41 @@ void Game::run() {
             sEnemySpawner();
             sMovement();
             sCollision();
-            sUserInput();
+            sRotation();
             m_currentFrame++;
         }
         sGUI();
         sRender();
+        sUserInput();
     }
 }
 
 void Game::spawnPlayer() {
     const auto entity = m_entities.addEntity("player");
 
-    entity->add<CTransform>(sf::Vector2f(200.0f, 200.0f), sf::Vector2(0.0f, 0.0f), 0.0f);
+    entity->add<CTransform>(sf::Vector2f(200.0f, 200.0f), sf::Vector2(0.0f, 0.0f));
     entity->add<CShape>(32.0f, 8, sf::Color(10, 10, 10), sf::Color(255, 0, 0), 4.0f);
+    entity->add<CCollision>(32.0f);
     entity->add<CInput>();
 }
 
 void Game::spawnEnemy() {
     const auto enemy = m_entities.addEntity("enemy");
 
-    enemy->add<CTransform>(sf::Vector2f(400.0f, 400.0f), sf::Vector2(0.0f, 0.0f), 0.0f);
-    enemy->add<CShape>(32.0f, 4, sf::Color(10, 10, 10), sf::Color(0, 255, 0), 4.0f);
+    std::random_device rd;
+    std::mt19937       gen(rd());
+
+    // Assuming screenWidth and screenHeight are defined
+    std::uniform_int_distribution<> distX(0, 1280);
+    std::uniform_int_distribution<> distY(0, 720);
+
+    float posX = distX(gen);
+    float posY = distY(gen);
+
+    enemy->add<CTransform>(sf::Vector2f(posX, posY), sf::Vector2(0.0f, 0.0f));
+    enemy->add<CShape>(32.0f, 3, sf::Color(10, 10, 10), sf::Color(0, 255, 0), 4.0f);
     enemy->add<CCollision>(32.0f);
+    enemy->add<CRotation>(posX);
 
     m_lastEnemySpawnTime = m_currentFrame;
 }
@@ -70,17 +84,17 @@ void Game::spawnSmallEnemies(std::shared_ptr<Entity> entity) {
     // spawn number of enemies to count of edges on largerEnemy
 }
 
-void Game::spawnBullet(std::shared_ptr<Entity> entity, const sf::Vector2f& mousePos) {}
+void Game::spawnBullet(std::shared_ptr<Entity> entity, const sf::Vector2f &mousePos) {}
 
 void Game::spawnSpecialWeapon(std::shared_ptr<Entity> entity) {}
 
 void Game::sMovement() {
-    auto& transform = player()->get<CTransform>();
+    auto &transform = player()->get<CTransform>();
     transform.position += transform.velocity;
 }
 
 void Game::sLifespan() {
-    for (auto entity : m_entities.getEntities()) {
+    for (auto entity: m_entities.getEntities()) {
         entity->get<CLifespan>().remaining--;
     }
 }
@@ -90,17 +104,21 @@ void Game::sCollision() {}
 void Game::sEnemySpawner() {}
 
 void Game::sGUI() {
-    ImGui::Begin("Yeah Yeah Gang");
+    ImGui::Begin("Game");
     ImGui::SliderFloat("Player Speed", &m_playerSpeed, 1.0f, 10.0f);
-    ImGui::Text("Yup Yup");
+    ImGui::Checkbox("Pause", &m_isPaused);
+    if (ImGui::Button("Spawn Enemy")) {
+        spawnEnemy();
+    }
     ImGui::End();
 }
 
 void Game::sRender() {
     m_window.clear();
 
-    for (const auto& entity : m_entities.getEntities()) {
+    for (const auto &entity: m_entities.getEntities()) {
         entity->get<CShape>().circle.setPosition(entity->get<CTransform>().position);
+        entity->get<CShape>().circle.setRotation(entity->get<CRotation>().angle);
         m_window.draw(entity->get<CShape>().circle);
     }
 
@@ -119,41 +137,41 @@ void Game::sUserInput() {
 
         if (event.type == sf::Event::KeyPressed) {
             switch (event.key.code) {
-            case sf::Keyboard::W:
-            case sf::Keyboard::Up:
-                player()->get<CTransform>().velocity.y = -m_playerSpeed;
-                break;
-            case sf::Keyboard::S:
-            case sf::Keyboard::Down:
-                player()->get<CTransform>().velocity.y = m_playerSpeed;
-                break;
-            case sf::Keyboard::A:
-            case sf::Keyboard::Left:
-                player()->get<CTransform>().velocity.x = -m_playerSpeed;
-                break;
-            case sf::Keyboard::D:
-            case sf::Keyboard::Right:
-                player()->get<CTransform>().velocity.x = m_playerSpeed;
-                break;
-            default: ;
+                case sf::Keyboard::W:
+                case sf::Keyboard::Up:
+                    player()->get<CTransform>().velocity.y = -m_playerSpeed;
+                    break;
+                case sf::Keyboard::S:
+                case sf::Keyboard::Down:
+                    player()->get<CTransform>().velocity.y = m_playerSpeed;
+                    break;
+                case sf::Keyboard::A:
+                case sf::Keyboard::Left:
+                    player()->get<CTransform>().velocity.x = -m_playerSpeed;
+                    break;
+                case sf::Keyboard::D:
+                case sf::Keyboard::Right:
+                    player()->get<CTransform>().velocity.x = m_playerSpeed;
+                    break;
+                default:;
             }
         }
 
         if (event.type == sf::Event::KeyReleased) {
             switch (event.key.code) {
-            case sf::Keyboard::W:
-            case sf::Keyboard::Up:
-            case sf::Keyboard::S:
-            case sf::Keyboard::Down:
-                player()->get<CTransform>().velocity.y = 0.0f;
-                break;
-            case sf::Keyboard::A:
-            case sf::Keyboard::Left:
-            case sf::Keyboard::D:
-            case sf::Keyboard::Right:
-                player()->get<CTransform>().velocity.x = 0.0f;
-                break;
-            default: ;
+                case sf::Keyboard::W:
+                case sf::Keyboard::Up:
+                case sf::Keyboard::S:
+                case sf::Keyboard::Down:
+                    player()->get<CTransform>().velocity.y = 0.0f;
+                    break;
+                case sf::Keyboard::A:
+                case sf::Keyboard::Left:
+                case sf::Keyboard::D:
+                case sf::Keyboard::Right:
+                    player()->get<CTransform>().velocity.x = 0.0f;
+                    break;
+                default:;
             }
         }
 
@@ -168,4 +186,11 @@ void Game::sUserInput() {
 
 void Game::setPaused(const bool paused) {
     m_isPaused = paused;
+}
+
+void Game::sRotation() {
+    for (auto &entity: m_entities.getEntities()) {
+        auto &rotation = entity->get<CRotation>();
+        rotation.angle += rotation.speed;
+    }
 }

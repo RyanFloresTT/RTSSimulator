@@ -7,6 +7,7 @@
 #include "CScore.h"
 #include "CShape.h"
 #include "CTransform.h"
+#include "CRotation.h"
 
 using ComponentTuple = std::tuple<
         CCollision,
@@ -14,5 +15,6 @@ using ComponentTuple = std::tuple<
         CLifespan,
         CScore,
         CShape,
-        CTransform
+        CTransform,
+        CRotation
 >;

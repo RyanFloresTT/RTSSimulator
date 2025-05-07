@@ -56,7 +56,8 @@ add_executable("${CMAKE_PROJECT_NAME}"
         include/EntityManager.h
         include/components/ComponentTuple.h
         src/Game.cpp
-        include/Game.h)
+        include/Game.h
+        include/components/CRotation.h)
 
 set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
 

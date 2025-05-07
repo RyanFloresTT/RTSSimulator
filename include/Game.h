@@ -11,7 +11,7 @@ struct PlayerConfig {
 };
 
 struct EnemyConfig {
-    int   SR,   CR, OR, OG, OB, OT, VMIN, VMAX, L, SI;
+    int   SR, CR, OR, OG, OB, OT, VMIN, VMAX, L, SI;
     float SMIN, SMAX;
 };
 
@@ -36,7 +36,7 @@ class Game {
     bool             m_isPaused           = false;
     bool             m_isRunning          = true;
 
-    void init(const std::string& config);
+    void init(const std::string &config);
 
     void setPaused(bool paused);
 
@@ -54,20 +54,22 @@ class Game {
 
     void sCollision();
 
+    void sRotation();
+
     void spawnPlayer();
 
     void spawnEnemy();
 
     void spawnSmallEnemies(std::shared_ptr<Entity> entity);
 
-    void spawnBullet(std::shared_ptr<Entity> entity, const sf::Vector2f& mousePos);
+    void spawnBullet(std::shared_ptr<Entity> entity, const sf::Vector2f &mousePos);
 
     void spawnSpecialWeapon(std::shared_ptr<Entity> entity);
 
     std::shared_ptr<Entity> player();
 
 public:
-    explicit Game(const std::string& config);
+    explicit Game(const std::string &config);
 
     void run();
 };

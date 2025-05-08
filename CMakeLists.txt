@@ -51,13 +51,13 @@ add_executable("${CMAKE_PROJECT_NAME}"
         include/components/CScore.h
         include/components/CLifespan.h
         include/components/CCollision.h
-        src/Entity.cpp
         include/Entity.h
         include/EntityManager.h
         include/components/ComponentTuple.h
         src/Game.cpp
         include/Game.h
-        include/components/CRotation.h)
+        include/components/CRotation.h
+        include/Util/VectorUtils.h)
 
 set_property(TARGET "${CMAKE_PROJECT_NAME}" PROPERTY CXX_STANDARD 17)
 

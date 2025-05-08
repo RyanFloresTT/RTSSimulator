@@ -2,11 +2,14 @@
 
 #include <iostream>
 #include <random>
-#include <filesystem>
+#include <cmath>
 
 #include "imgui-SFML.h"
 #include "imgui.h"
 #include "SFML/Window/Event.hpp"
+#include "Util/VectorUtils.h"
+
+const double PI = 3.141592653589793;
 
 Game::Game(const std::string &config) {
     init(config);
@@ -40,16 +43,16 @@ std::shared_ptr<Entity> Game::player() {
 }
 
 void Game::run() {
-    // TODO: add pause function here
     while (m_isRunning) {
         m_entities.update();
 
+        if (!m_isPaused) { sLifespan(); }
         ImGui::SFML::Update(m_window, m_deltaClock.restart());
 
         if (!m_isPaused) {
-            sEnemySpawner();
+            if (m_canSpawn) { sEnemySpawner(); }
+            if (m_isCollisionsOn) { sCollision(); }
             sMovement();
-            sCollision();
             sRotation();
             m_currentFrame++;
         }
@@ -76,15 +79,24 @@ void Game::spawnEnemy() {
 
     // Assuming screenWidth and screenHeight are defined
     std::uniform_int_distribution<> distP(0, 8);
-    std::uniform_int_distribution<> distX(0, 1280);
-    std::uniform_int_distribution<> distY(0, 720);
+    std::uniform_int_distribution<> distX(32, 1280 - 32);
+    std::uniform_int_distribution<> distY(32, 720 - 32);
+    std::uniform_int_distribution<> distRGB(0, 256);
 
-    int   points = distP(gen);
-    float posX   = distX(gen);
-    float posY   = distY(gen);
+    int points = distP(gen);
+    int posX   = distX(gen);
+    int posY   = distY(gen);
+    int red    = distRGB(gen);
+    int green  = distRGB(gen);
+    int blue   = distRGB(gen);
 
-    enemy->add<CTransform>(sf::Vector2f(posX, posY), sf::Vector2(0.0f, 0.0f));
-    enemy->add<CShape>(32.0f, points, sf::Color(10, 10, 10), sf::Color(0, 255, 0), 4.0f);
+    auto enemyVector = VectorUtils::generateNormalizedVector();
+
+    enemyVector.x *= 2;
+    enemyVector.y *= 2;
+
+    enemy->add<CTransform>(sf::Vector2f(posX, posY), enemyVector);
+    enemy->add<CShape>(32.0f, points, sf::Color(red, green, blue), sf::Color(red, green, blue), 4.0f);
     enemy->add<CCollision>(32.0f);
     enemy->add<CRotation>(9 - points);
     enemy->add<CScore>(points * 100);
@@ -92,8 +104,26 @@ void Game::spawnEnemy() {
     m_lastEnemySpawnTime = m_currentFrame;
 }
 
-void Game::spawnSmallEnemies(std::shared_ptr<Entity> entity) {
-    // spawn number of enemies to count of edges on largerEnemy
+void Game::spawnSmallEnemies(const std::shared_ptr<Entity> &entity) {
+    size_t   points = entity->get<CShape>().circle.getPointCount();
+    for (int i      = 0; i < points; ++i) {
+        float angle_degrees = (360.0f / points) * i;
+        float angle_radians = angle_degrees * (PI / 180.0f);
+
+        float x = std::cos(angle_radians);
+        float y = std::sin(angle_radians);
+
+        auto entityShape     = entity->get<CShape>();
+        auto smallEnemyColor = entityShape.circle.getFillColor();
+        smallEnemyColor.a = 128;
+        auto smallEnemy = m_entities.addEntity("small enemy");
+        smallEnemy->add<CTransform>(entity->get<CTransform>().position, sf::Vector2f(x, y));
+        smallEnemy->add<CShape>(4.0f, points, smallEnemyColor,
+                                entityShape.circle.getOutlineColor(), 4.0f);
+        smallEnemy->add<CCollision>(4.0f);
+        smallEnemy->add<CScore>(points * 100);
+        smallEnemy->add<CLifespan>(1);
+    }
 }
 
 void Game::spawnBullet(const std::shared_ptr<Entity> &entity, const sf::Vector2f &mousePos) {
@@ -107,15 +137,17 @@ void Game::spawnBullet(const std::shared_ptr<Entity> &entity, const sf::Vector2f
         direction /= distance;
     }
 
-    direction.x *= 3;
-    direction.y *= 3;
+    direction.x *= 6;
+    direction.y *= 6;
 
     entity->add<CTransform>(playerPos, direction);
     entity->add<CShape>(4.0f, 24, sf::Color(255, 255, 255), sf::Color(255, 255, 255), 4.0f);
     entity->add<CCollision>(4.0f);
+    entity->add<CLifespan>(3.0f);
 }
 
-void Game::spawnSpecialWeapon(std::shared_ptr<Entity> entity) {}
+void Game::spawnSpecialWeapon(const std::shared_ptr<Entity> &entity) {
+}
 
 void Game::sMovement() {
     for (auto &entity: m_entities.getEntities()) {
@@ -124,25 +156,77 @@ void Game::sMovement() {
     }
 }
 
-void Game::sLifespan() {}
+void Game::sLifespan() {
+    for (const auto &entity: m_entities.getEntities()) {
+        auto &lifespan = entity->get<CLifespan>();
+        lifespan.remaining -= m_deltaClock.getElapsedTime().asSeconds();
+        if (entity->tag() == "bullet") {
+            std::cout << lifespan.remaining << "\n";
+        }
+        if (entity->has<CLifespan>() && lifespan.remaining < 0) {
+            entity->destroy();
+        }
+    }
+}
 
 void Game::sCollision() {
+    bool playerDestroyed = false;
+
+    // handle collisions between entities
     for (const auto &el: m_entities.getEntities()) {
         for (const auto &er: m_entities.getEntities()) {
+
             if (el->id() == er->id()) continue;
             if ((el->tag() == "player" && er->tag() == "bullet") ||
                 (er->tag() == "player" && el->tag() == "bullet"))
                 continue;
             if (el->tag() == "enemy" && er->tag() == "enemy") continue;
+            if (el->tag() == "small enemy" && er->tag() == "small enemy") continue;
+
             auto  diff     = el->get<CTransform>().position - er->get<CTransform>().position;
             float distance = std::sqrt(diff.x * diff.x + diff.y * diff.y);
             if (el->get<CCollision>().radius + er->get<CCollision>().radius > distance) {
+
+                if (el->tag() == "player" || er->tag() == "player") {
+                    playerDestroyed = true;
+
+                    el->destroy();
+                    er->destroy();
+                    break;
+                }
+
+                if (el->tag() == "enemy") {
+                    spawnSmallEnemies(el);
+                }
+
+                if (er->tag() == "enemy") {
+                    spawnSmallEnemies(er);
+                }
+
                 el->destroy();
                 er->destroy();
+
                 m_score += el->get<CScore>().score;
                 m_score += er->get<CScore>().score;
             }
         }
+    }
+
+    // handle collisions between entities and the screen bounds
+    for (auto &entity: m_entities.getEntities()) {
+        auto       &transform = entity->get<CTransform>();
+        const auto collider   = entity->get<CCollision>();
+        if (transform.position.x + collider.radius >= 1280 || transform.position.x - collider.radius <= 0) {
+            transform.velocity.x *= -1;
+        }
+
+        if (transform.position.y + collider.radius >= 720 || transform.position.y - collider.radius <= 0) {
+            transform.velocity.y *= -1;
+        }
+    }
+
+    if (playerDestroyed) {
+        spawnPlayer();
     }
 }
 
@@ -156,6 +240,8 @@ void Game::sGUI() {
     ImGui::Begin("Game");
     ImGui::SliderFloat("Player Speed", &m_playerSpeed, 1.0f, 10.0f);
     ImGui::Checkbox("Pause", &m_isPaused);
+    ImGui::Checkbox("Enemy Spawner", &m_canSpawn);
+    ImGui::Checkbox("Collisions", &m_isCollisionsOn);
     if (ImGui::Button("Spawn Enemy")) {
         spawnEnemy();
     }

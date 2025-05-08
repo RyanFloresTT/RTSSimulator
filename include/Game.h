@@ -25,9 +25,9 @@ class Game {
     EntityManager    m_entities;
     sf::Font         m_font;
     sf::Text         m_text;
-    PlayerConfig     m_playerConfig;
-    EnemyConfig      m_enemyConfig;
-    BulletConfig     m_bulletConfig;
+    PlayerConfig     m_playerConfig{};
+    EnemyConfig      m_enemyConfig{};
+    BulletConfig     m_bulletConfig{};
     sf::Clock        m_deltaClock;
     int              m_score              = 0;
     int              m_currentFrame       = 0;
@@ -35,6 +35,8 @@ class Game {
     float            m_playerSpeed        = 2;
     bool             m_isPaused           = false;
     bool             m_isRunning          = true;
+    bool             m_canSpawn           = true;
+    bool             m_isCollisionsOn     = true;
 
     void init(const std::string &config);
 
@@ -60,11 +62,11 @@ class Game {
 
     void spawnEnemy();
 
-    void spawnSmallEnemies(std::shared_ptr<Entity> entity);
+    void spawnSmallEnemies(const std::shared_ptr<Entity> &entity);
 
     void spawnBullet(const std::shared_ptr<Entity> &entity, const sf::Vector2f &mousePos);
 
-    void spawnSpecialWeapon(std::shared_ptr<Entity> entity);
+    void spawnSpecialWeapon(const std::shared_ptr<Entity> &entity);
 
     std::shared_ptr<Entity> player();
 

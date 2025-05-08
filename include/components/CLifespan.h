@@ -4,8 +4,8 @@
 
 class CLifespan : public Component {
 public:
-    int lifespan  = 0;
-    int remaining = 0;
+    int   lifespan  = 0;
+    float remaining = 0;
 
     CLifespan() = default;
 
